@@ -96,7 +96,7 @@ scalar P0      = 1.01e5;        // ambient pressure
 scalar P2      = Ps;            // shock peak
 
 scalar r_arr   = 15.5e-03;
-scalar r_shock = r_arr - cs*t_star;
+scalar r_shock = r_arr - u_shock*t_star;
 
 scalar x_off = 6.0*(32e-6);
 scalar y_off = 8.0*(32e-6);

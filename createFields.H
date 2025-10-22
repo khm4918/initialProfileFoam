@@ -85,9 +85,9 @@ scalar r0      = 2.29e-03;
 scalar a0      = 0.1e-03;
 int n          = 16;
 
-scalar Ps      = 815e6;
-scalar t_star  = 0.9e-6;
-scalar u_shock = 2200;
+scalar Ps      = 660e6;
+scalar t_star  = 2.5e-6;
+scalar u_shock = 1905;
 
 scalar cs      = 1500;
 scalar rho_amb = 1000;
@@ -206,18 +206,23 @@ forAll(p, cellI)
 
         // Assign fields
         p[cellI]    = p_friedlander;
+        rho1[cellI] = rho_adbt;
 
         scalar ux = x_shift / safe_rmag;
         scalar uy = y_shift / safe_rmag;
-	}
+        U[cellI].x() = -U_mag * ux;
+        U[cellI].y() = -U_mag * uy;
+
+        T[cellI] = T_adbt;
+    }
     else
     {
         p[cellI]    = pAmbient;
+        rho1[cellI] = rho_amb;
+        U[cellI]    = vector::zero;
+        T[cellI]    = 298.0;
     }
-    
-    rho1[cellI] = rho_amb;
-    U[cellI]    = vector::zero;
-    T[cellI]    = 298.0;
+
     rho2[cellI] = 1.293; // air density
 }
 

@@ -85,9 +85,9 @@ scalar r0      = 2.29e-03;
 scalar a0      = 0.1e-03;
 int n          = 16;
 
-scalar Ps      = 470e6;
+scalar Ps      = 815e6;
 scalar t_star  = 0.9e-6;
-scalar u_shock = 2025;
+scalar u_shock = 2200;
 
 scalar cs      = 1500;
 scalar rho_amb = 1000;
@@ -98,8 +98,8 @@ scalar P2      = Ps;            // shock peak
 scalar r_arr   = 15.5e-03;
 scalar r_shock = r_arr - u_shock*t_star;
 
-scalar x_off = 0;
-scalar y_off = 0;
+scalar x_off = 6.0*(32e-6);
+scalar y_off = 8.0*(32e-6);
 
 const scalar SMALL    = 1e-12;
 const scalar U_CAP    = 1.0e5;
@@ -130,16 +130,23 @@ forAll(p, cellI)
     scalar xx = mesh.C()[cellI].x();
     scalar yy = mesh.C()[cellI].y();
 
-    // Interface perturbation
-    scalar azim  = Foam::atan2(yy, xx);
-    scalar pertR = r0 - a0*Foam::cos(n*azim);
-    scalar r2    = xx*xx + yy*yy;
-    alpha1[cellI] = (r2 <= pertR*pertR) ? 0.0 : 1.0;
+	// For interface offset
+	scalar xx_int = xx - x_off;
+	scalar yy_int = yy - y_off;
+
+	scalar azim  = Foam::atan2(yy_int, xx_int);
+	scalar pertR = r0 - a0*Foam::cos(n*azim);
+	if ((xx_int*xx_int + yy_int*yy_int) <= pertR*pertR)
+	{
+		alpha1[cellI] = 0;
+	}
+	else
+	{
+		alpha1[cellI] = 1.0;
+	}
 
     // Position relative to shock center
-    scalar x_shift = xx - x_off;
-    scalar y_shift = yy - y_off;
-    scalar r_mag   = Foam::sqrt(x_shift*x_shift + y_shift*y_shift);
+    scalar r_mag   = Foam::sqrt(xx*xx + yy*yy);
 
     // --- Converging shock: r_prime positive inside shock front ---
     scalar r_prime = r_mag - r_shock;      // positive for r < r_shock
@@ -207,22 +214,16 @@ forAll(p, cellI)
         // Assign fields
         p[cellI]    = p_friedlander;
         rho1[cellI] = rho_adbt;
-
-        scalar ux = x_shift / safe_rmag;
-        scalar uy = y_shift / safe_rmag;
-        U[cellI].x() = -U_mag * ux;
-        U[cellI].y() = -U_mag * uy;
-
         T[cellI] = T_adbt;
     }
     else
     {
         p[cellI]    = pAmbient;
         rho1[cellI] = rho_amb;
-        U[cellI]    = vector::zero;
         T[cellI]    = 298.0;
     }
-
+    
+	U[cellI]    = vector::zero;
     rho2[cellI] = 1.293; // air density
 }
 
