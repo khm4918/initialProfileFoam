@@ -98,8 +98,8 @@ scalar P2      = Ps;            // shock peak
 scalar r_arr   = 15.5e-03;
 scalar r_shock = r_arr - u_shock*t_star;
 
-scalar x_off = 6.0*(32e-6);
-scalar y_off = 8.0*(32e-6);
+scalar x_off = 0;
+scalar y_off = 0;
 
 const scalar SMALL    = 1e-12;
 const scalar U_CAP    = 1.0e5;
