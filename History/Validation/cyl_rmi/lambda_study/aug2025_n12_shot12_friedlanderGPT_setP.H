@@ -90,7 +90,7 @@ scalar t_star  = 0.9e-6;
 scalar u_shock = 2200;
 
 scalar cs      = 1500;
-scalar rho_amb = 1000;
+scalar rho_amb = 1030;			// according to J-boy
 
 scalar P0      = 1.01e5;        // ambient pressure
 scalar P2      = Ps;            // shock peak
