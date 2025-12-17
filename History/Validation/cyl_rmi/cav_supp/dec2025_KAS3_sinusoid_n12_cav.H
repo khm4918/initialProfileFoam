@@ -82,7 +82,7 @@ Info<< "  gamma   = " << gamma << nl
 // Shock and ambient parameters
 
 scalar r0      = 2.3e-03;
-scalar a0      = 0.2e-03;
+scalar a0      = 0.1e-03;
 int n          = 12;
 
 scalar Ps      = 400e6;
@@ -104,11 +104,6 @@ scalar y_off = 0;
 const scalar SMALL    = 1e-12;
 const scalar U_CAP    = 1.0e5;
 const scalar pAmbient = 1.01e5;
-
-// Single defect region
-
-scalar theta_lower=-0.131;
-scalar theta_upper=0.131;
 
 // Cavity parameters
 
@@ -161,15 +156,12 @@ forAll(p, cellI)
     scalar xx = mesh.C()[cellI].x();
     scalar yy = mesh.C()[cellI].y();
 
-    // Interface perturbation
+    // Interface perturbation and cavity zero
     scalar azim  = Foam::atan2(yy, xx);
     scalar pertR = r0 - a0*Foam::cos(n*azim);
     scalar r2    = xx*xx + yy*yy;
-    alpha1[cellI] = ((xx>0 and Foam::atan(yy/xx)>theta_lower and Foam::atan(yy/xx)<theta_upper and r2 <= pertR*pertR) ||
-						((Foam::atan(yy/xx)<theta_lower || Foam::atan(yy/xx)>theta_upper || xx<0 and Foam::atan(yy/xx)>theta_lower and Foam::atan(yy/xx)<theta_upper) and r2 <= r0*r0) ||
-						((r2 <= r_cav*r_cav) and (yy<=lines[0][0]*xx+lines[0][1]) and (yy>=lines[1][0]*xx+lines[1][1]))) 
-						? 0.0 : 1.0;
-
+    alpha1[cellI] = ( (r2 <= pertR*pertR) || ((r2 <= r_cav*r_cav) and (yy<=lines[0][0]*xx+lines[0][1]) and (yy>=lines[1][0]*xx+lines[1][1])) ) ? 0.0 : 1.0;
+	
     // Position relative to shock center
     scalar x_shift = xx - x_off;
     scalar y_shift = yy - y_off;
