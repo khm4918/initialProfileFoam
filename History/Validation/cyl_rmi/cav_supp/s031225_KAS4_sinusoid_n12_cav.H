@@ -87,7 +87,7 @@ int n          = 12;
 
 scalar Ps      = 600e6;
 scalar t_star  = 0.9e-6;
-scalar u_shock = 1900;
+scalar u_shock = 2025;
 
 scalar cs      = 1500;
 scalar rho_amb = 1030;			// according to J-boy

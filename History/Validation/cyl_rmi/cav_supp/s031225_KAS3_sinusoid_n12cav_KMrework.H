@@ -61,6 +61,7 @@ const dictionary& fluidDict = phaseProps.subDict("fluid");
 scalar gamma = 4.4;
 scalar pInf  = 6.0e8;
 scalar C_heat = 4285;
+scalar e_0 = 1.1e6;				// empirically derived internal energy correction to fix ambient temperature
 
 if (fluidDict.found("equationOfState"))
 {
@@ -85,9 +86,9 @@ scalar r0      = 2.3e-03;
 scalar a0      = 0.1e-03;
 int n          = 12;
 
-scalar Ps      = 600e6;
+scalar Ps      = 380e6;
 scalar t_star  = 0.9e-6;
-scalar u_shock = 2025;
+scalar u_shock = 1900;
 
 scalar cs      = 1500;
 scalar rho_amb = 1030;			// according to J-boy
@@ -104,6 +105,32 @@ scalar y_off = 0;
 const scalar SMALL    = 1e-12;
 const scalar U_CAP    = 1.0e5;
 const scalar pAmbient = 1.01e5;
+
+// Cavity parameters
+
+int ncav = 12;
+scalar r_cav=9.3e-03;
+
+float x_p0={-8e-03};
+float y_p0={0};
+	
+float x_p1={-9.1e-03};			//averaged from x,y positions of visible cavity vertices in shot
+float y_p1={1.7e-03};
+	
+float x_p2={x_p1};
+float y_p2={-1*y_p1};
+
+// ------------------------------------------------------------------------- //
+
+// Cavity defining equations and rotation info
+
+std::vector<std::vector<float>> lines = {
+					{(y_p1-y_p0)/(x_p1-x_p0),y_p1-(y_p1-y_p0)/(x_p1-x_p0)*x_p1}, //L0 - p0 to p1
+					{(y_p0-y_p2)/(x_p0-x_p2),y_p0-(y_p0-y_p2)/(x_p0-x_p2)*x_p0}  //L1 - p0 to p2
+					}; 
+
+//rotation matrix params
+scalar rot=M_PI*2/(ncav);
 
 // ------------------------------------------------------------------------- //
 // Correct stiffened-gas post-shock density
@@ -130,11 +157,11 @@ forAll(p, cellI)
     scalar xx = mesh.C()[cellI].x();
     scalar yy = mesh.C()[cellI].y();
 
-    // Interface perturbation
+    // Interface perturbation and cavity zero
     scalar azim  = Foam::atan2(yy, xx);
     scalar pertR = r0 - a0*Foam::cos(n*azim);
     scalar r2    = xx*xx + yy*yy;
-    alpha1[cellI] = (r2 <= pertR*pertR) ? 0.0 : 1.0;
+    alpha1[cellI] = ( (r2 <= pertR*pertR) || ((r2 <= r_cav*r_cav) and (yy<=lines[0][0]*xx+lines[0][1]) and (yy>=lines[1][0]*xx+lines[1][1])) ) ? 0.0 : 1.0;
 
     // Position relative to shock center
     scalar x_shift = xx - x_off;
@@ -175,7 +202,7 @@ forAll(p, cellI)
     if (p_friedlander > pAmbient + SMALL)
     {
         // Post-shock density from adiabatic compression
-        scalar ratio    = Foam::max(p_friedlander / Ps, 1e-12);
+        scalar ratio    = Foam::max((p_friedlander + pInf) / (Ps + pInf), 1e-12);
         scalar rho_adbt = rho_post * Foam::pow(ratio, 1.0/gamma);
 
         if (rho_adbt < SMALL && count_rhoadbt < 10)
@@ -190,7 +217,7 @@ forAll(p, cellI)
         scalar safe_rmag   = Foam::max(Foam::mag(r_mag), 1e-6);
 
         // Velocity magnitude
-        scalar U_mag = U_post * (rho_amb / rho_adbt) * (r_shock / safe_rprime);
+        scalar U_mag = U_post; //* (rho_amb / rho_adbt) * (r_shock / safe_rprime);
 
         // Smooth near focus
         if (r_mag < 0.5*r_shock)
@@ -202,24 +229,88 @@ forAll(p, cellI)
 
         // Internal energy and temperature
         scalar e_adbt = (p_friedlander + pInf) / ((gamma-1.0)*rho_adbt);
-        scalar T_adbt = e_adbt / C_heat;
+        scalar T_adbt = (e_adbt + e_0) / C_heat;
 
         // Assign fields
         p[cellI]    = p_friedlander;
+		rho1[cellI] = rho_adbt;
+		T[cellI] = T_adbt;
 
-        scalar ux = x_shift / safe_rmag;
-        scalar uy = y_shift / safe_rmag;
+
+        scalar ux = -x_shift / safe_rmag;
+        scalar uy = -y_shift / safe_rmag;
+		U[cellI] = vector(U_mag*ux, U_mag*uy, 0.0);
 	}
     else
     {
         p[cellI]    = pAmbient;
+		rho1[cellI] = rho_amb;
+		T[cellI]    = 298.0;
+		U[cellI]    = vector::zero;
     }
     
-    rho1[cellI] = rho_amb;
-    U[cellI]    = vector::zero;
-    T[cellI]    = 298.0;
     rho2[cellI] = 1.293; // air density
 }
+
+//create vector to store x, y coords of cavity zero
+	List<vector> targetCoords;	
+
+ //find cavity zero cell coords
+          forAll(p,cellI){
+    scalar xc=mesh.C()[cellI].x();
+    scalar yc=mesh.C()[cellI].y();
+	
+					//go to radii outside of central air cylinder
+                    if(
+					
+					((xc*xc + yc*yc) > (r0 + a0)*(r0 + a0))
+					
+					//find air cell
+					and (alpha1[cellI]==0)
+					
+					)
+					
+						{
+							//Info << "Found target cell " << endl;
+							
+							//calculate corresponding rotation cell coords 
+							for (int n=1; n<int(ncav); n++) 
+								
+							{
+										scalar xrot = xc*Foam::cos(rot*n)-yc*Foam::sin(rot*n);
+										scalar yrot = xc*Foam::sin(rot*n)+yc*Foam::cos(rot*n);
+										targetCoords.append(vector(xrot, yrot, 0.0));
+	
+							}
+						
+						}
+
+                     }
+
+//now target all cells nearest to identified coords and set alpha1 to 0
+	forAll(targetCoords, i)
+	{
+		vector target = targetCoords[i];
+		label nearest = -1;
+		scalar minDist = 1e-6;
+
+		forAll(mesh.C(), cellI)
+		{
+			scalar d = magSqr(mesh.C()[cellI] - target);
+			if (d < minDist)
+			{
+				minDist = d;
+				nearest = cellI;
+			}
+		}
+
+		if (nearest != -1)
+		{
+			//Info << "Updating alpha at nearest cell " << nearest
+				//<< " (coords " << mesh.C()[nearest] << ")" << endl;
+			alpha1[nearest] = 0.0;
+		}
+	}
 
 // ------------------------------------------------------------------------- //
 // Write fields

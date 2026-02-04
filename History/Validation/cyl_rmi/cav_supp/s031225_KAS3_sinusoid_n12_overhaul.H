@@ -85,9 +85,9 @@ scalar r0      = 2.3e-03;
 scalar a0      = 0.1e-03;
 int n          = 12;
 
-scalar Ps      = 600e6;
-scalar t_star  = 0.9e-6;
-scalar u_shock = 2025;
+scalar Ps      = 380e6;
+scalar t_star  = 0.6e-6;
+scalar u_shock = 1900;
 
 scalar cs      = 1500;
 scalar rho_amb = 1030;			// according to J-boy
@@ -190,7 +190,7 @@ forAll(p, cellI)
         scalar safe_rmag   = Foam::max(Foam::mag(r_mag), 1e-6);
 
         // Velocity magnitude
-        scalar U_mag = U_post * (rho_amb / rho_adbt) * (r_shock / safe_rprime);
+        scalar U_mag = U_post; //* (rho_amb / rho_adbt) * (r_shock / safe_rprime);
 
         // Smooth near focus
         if (r_mag < 0.5*r_shock)
@@ -206,18 +206,22 @@ forAll(p, cellI)
 
         // Assign fields
         p[cellI]    = p_friedlander;
+		rho1[cellI] = rho_adbt;
+		T[cellI] = T_adbt;
 
-        scalar ux = x_shift / safe_rmag;
-        scalar uy = y_shift / safe_rmag;
+
+        scalar ux = -x_shift / safe_rmag;
+        scalar uy = -y_shift / safe_rmag;
+		U[cellI] = vector(U_mag*ux, U_mag*uy, 0.0);
 	}
     else
     {
         p[cellI]    = pAmbient;
+		rho1[cellI] = rho_amb;
+		T[cellI]    = 298.0;
+		U[cellI]    = vector::zero;
     }
     
-    rho1[cellI] = rho_amb;
-    U[cellI]    = vector::zero;
-    T[cellI]    = 298.0;
     rho2[cellI] = 1.293; // air density
 }
 
