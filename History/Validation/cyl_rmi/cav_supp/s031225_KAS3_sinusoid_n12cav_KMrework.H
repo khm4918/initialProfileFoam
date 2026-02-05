@@ -86,7 +86,7 @@ scalar r0      = 2.3e-03;
 scalar a0      = 0.1e-03;
 int n          = 12;
 
-scalar Ps      = 380e6;
+scalar Ps      = 320e6;
 scalar t_star  = 0.9e-6;
 scalar u_shock = 1900;
 

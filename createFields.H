@@ -60,8 +60,8 @@ const dictionary& fluidDict = phaseProps.subDict("fluid");
 
 scalar gamma = 4.4;
 scalar pInf  = 6.0e8;
-scalar C_heat = 4285;
-scalar e_0 = 1.1e6;				// empirically derived internal energy correction to fix ambient temperature
+scalar C_heat = 600;
+//scalar e_0 = 1.1e6;				// empirically derived internal energy correction to fix ambient temperature
 
 if (fluidDict.found("equationOfState"))
 {
@@ -203,7 +203,7 @@ forAll(p, cellI)
 
         // Internal energy and temperature
         scalar e_adbt = (p_friedlander + pInf) / ((gamma-1.0)*rho_adbt);
-        scalar T_adbt = (e_adbt + e_0) / C_heat;
+        scalar T_adbt = (e_adbt) / C_heat;									//e_adbt + e_0 in previous edition
 
         // Assign fields
         p[cellI]    = p_friedlander;
