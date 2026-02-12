@@ -106,32 +106,6 @@ const scalar SMALL    = 1e-12;
 const scalar U_CAP    = 1.0e5;
 const scalar pAmbient = 1.01e5;
 
-// Cavity parameters
-
-int ncav = 12;
-scalar r_cav=9.3e-03;
-
-float x_p0={-8e-03};
-float y_p0={0};
-	
-float x_p1={-9.1e-03};			//averaged from x,y positions of visible cavity vertices in shot
-float y_p1={1.7e-03};
-	
-float x_p2={x_p1};
-float y_p2={-1*y_p1};
-
-// ------------------------------------------------------------------------- //
-
-// Cavity defining equations and rotation info
-
-std::vector<std::vector<float>> lines = {
-					{(y_p1-y_p0)/(x_p1-x_p0),y_p1-(y_p1-y_p0)/(x_p1-x_p0)*x_p1}, //L0 - p0 to p1
-					{(y_p0-y_p2)/(x_p0-x_p2),y_p0-(y_p0-y_p2)/(x_p0-x_p2)*x_p0}  //L1 - p0 to p2
-					}; 
-
-//rotation matrix params
-scalar rot=M_PI*2/(ncav);
-
 // ------------------------------------------------------------------------- //
 // Correct stiffened-gas post-shock density
 
@@ -286,12 +260,12 @@ forAll(p, cellI)
                         scalar xx = N[0]*xM[0]+N[1]*xM[1]+N[2]*xM[2]+N[3]*xM[3];
                         scalar yy = N[0]*yM[0]+N[1]*yM[1]+N[2]*yM[2]+N[3]*yM[3];
 						
-						// Interface perturbation and cavity zero
+						// Interface perturbation
 						scalar azim  = Foam::atan2(yy, xx);
 						scalar pertR = r0 - a0*Foam::cos(n*azim);
 						scalar r2    = xx*xx + yy*yy;
 						
-                        if((r2 <= pertR*pertR) || ((r2 <= r_cav*r_cav) and (yy<=lines[0][0]*xx+lines[0][1]) and (yy>=lines[1][0]*xx+lines[1][1])))		//change to match interface
+                        if(r2 <= pertR*pertR)		//change to match interface
                         {
                             sumY0+=1.0e-6;
                             sumY1+=1.0e-6;
@@ -327,73 +301,10 @@ forAll(p, cellI)
 
             alpha1[cellI] = sumY0/sumNum;			//alpha- volume mixing fraction
             p[cellI]=pAmbient;
-            T[cellI]=298.0;  
+            T[cellI]=298.0;		
            // rho[cellI] = sumR/sumNum;
         }
-
-//create vector to store x, y coords of cavity zero
-	List<vector> targetCoords;
-	std::vector<float> targetAlpha;
-
- //find cavity zero cell coords
-          forAll(p,cellI){
-    scalar xc=mesh.C()[cellI].x();
-    scalar yc=mesh.C()[cellI].y();
-	
-					//go to radii outside of central air cylinder
-                    if(
-					
-					((xc*xc + yc*yc) > (r0 + a0)*(r0 + a0))
-					
-					//find air/mixing cell
-					and (alpha1[cellI] < 0.9999)
-					
-					)
-					
-						{
-							//Info << "Found target cell " << endl;
-							Info << "Identified cell, alpha = " << alpha1[cellI] << endl;
-													
-							//calculate corresponding rotation cell coords
-							for (int n=1; n<int(ncav); n++) 
-								
-							{
-										scalar xrot = xc*Foam::cos(rot*n)-yc*Foam::sin(rot*n);
-										scalar yrot = xc*Foam::sin(rot*n)+yc*Foam::cos(rot*n);
-										targetCoords.append(vector(xrot, yrot, 0.0005));			//store coords
-										targetAlpha.push_back(alpha1[cellI]);					//store corresponding alpha1
-							}
-						
-						}
-
-                     }
-
-//now target all cells nearest to identified coords
-	forAll(targetCoords, i)
-	{
-		vector target = targetCoords[i];
-		label nearest = -1;
-		scalar minDist = 1e-8;
-
-		forAll(mesh.C(), cellI)
-		{
-			scalar d = magSqr(mesh.C()[cellI] - target);
-			if (d < minDist)
-			{
-				minDist = d;
-				nearest = cellI;
-			}
-		}
-		
-		//set alpha1 to corresponding value
-		
-		if (nearest != -1)
-		{
-			//Info << "Updating alpha at nearest cell " << nearest
-				//<< " (coords " << mesh.C()[nearest] << ")" << endl;			
-			alpha1[nearest] = targetAlpha[i];
-		}
-	}
+        
 
 // ------------------------------------------------------------------------- //
 // Write fields

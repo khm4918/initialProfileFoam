@@ -234,7 +234,8 @@
                       rho2[cellI]=1.293;
        
                      }
-      // high order initialization    
+					 
+      // high order initialization for smoothing of volume mixing fraction alpha
       
         /* label np=40;
                     
@@ -273,7 +274,7 @@
                         N[3]=(1.0-wgI)*(1.0+wgJ)/4.0;    
                         scalar xx = N[0]*xM[0]+N[1]*xM[1]+N[2]*xM[2]+N[3]*xM[3];
                         scalar yy = N[0]*yM[0]+N[1]*yM[1]+N[2]*yM[2]+N[3]*yM[3];
-                        if(((xx-0.5)*(xx-0.5)+(yy-0.5)*(yy-0.5))<=0.0625)
+                        if(((xx-0.5)*(xx-0.5)+(yy-0.5)*(yy-0.5))<=0.0625)		//change to match interface
                         {
                             sumY0+=1.0e-6;
                             sumY1+=1.0e-6;
@@ -307,7 +308,7 @@
 
            }
 
-             Y[0][cellI] = sumY0/sumNum;
+             Y[0][cellI] = sumY0/sumNum;			//alpha- volume mixing fraction
              Y[1][cellI] = sumY1/sumNum;
              Y[2][cellI] = sumY2/sumNum;
             p[cellI]=1.01e5;

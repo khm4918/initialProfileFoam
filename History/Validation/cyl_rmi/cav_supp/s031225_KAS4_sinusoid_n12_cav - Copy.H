@@ -60,8 +60,7 @@ const dictionary& fluidDict = phaseProps.subDict("fluid");
 
 scalar gamma = 4.4;
 scalar pInf  = 6.0e8;
-scalar C_heat = 600;
-//scalar e_0 = 1.1e6;				// empirically derived internal energy correction to fix ambient temperature
+scalar C_heat = 4285;
 
 if (fluidDict.found("equationOfState"))
 {
@@ -86,9 +85,9 @@ scalar r0      = 2.3e-03;
 scalar a0      = 0.1e-03;
 int n          = 12;
 
-scalar Ps      = 320e6;
+scalar Ps      = 600e6;
 scalar t_star  = 0.9e-6;
-scalar u_shock = 1900;
+scalar u_shock = 2025;
 
 scalar cs      = 1500;
 scalar rho_amb = 1030;			// according to J-boy
@@ -157,6 +156,12 @@ forAll(p, cellI)
     scalar xx = mesh.C()[cellI].x();
     scalar yy = mesh.C()[cellI].y();
 
+    // Interface perturbation and cavity zero
+    scalar azim  = Foam::atan2(yy, xx);
+    scalar pertR = r0 - a0*Foam::cos(n*azim);
+    scalar r2    = xx*xx + yy*yy;
+    alpha1[cellI] = ( (r2 <= pertR*pertR) || ((r2 <= r_cav*r_cav) and (yy<=lines[0][0]*xx+lines[0][1]) and (yy>=lines[1][0]*xx+lines[1][1])) ) ? 0.0 : 1.0;
+	
     // Position relative to shock center
     scalar x_shift = xx - x_off;
     scalar y_shift = yy - y_off;
@@ -196,7 +201,7 @@ forAll(p, cellI)
     if (p_friedlander > pAmbient + SMALL)
     {
         // Post-shock density from adiabatic compression
-        scalar ratio    = Foam::max((p_friedlander + pInf) / (Ps + pInf), 1e-12);
+        scalar ratio    = Foam::max(p_friedlander / Ps, 1e-12);
         scalar rho_adbt = rho_post * Foam::pow(ratio, 1.0/gamma);
 
         if (rho_adbt < SMALL && count_rhoadbt < 10)
@@ -211,7 +216,7 @@ forAll(p, cellI)
         scalar safe_rmag   = Foam::max(Foam::mag(r_mag), 1e-6);
 
         // Velocity magnitude
-        scalar U_mag = U_post; //* (rho_amb / rho_adbt) * (r_shock / safe_rprime);
+        scalar U_mag = U_post * (rho_amb / rho_adbt) * (r_shock / safe_rprime);
 
         // Smooth near focus
         if (r_mag < 0.5*r_shock)
@@ -223,117 +228,27 @@ forAll(p, cellI)
 
         // Internal energy and temperature
         scalar e_adbt = (p_friedlander + pInf) / ((gamma-1.0)*rho_adbt);
-        scalar T_adbt = (e_adbt) / C_heat;									//e_adbt + e_0 in previous edition
+        scalar T_adbt = e_adbt / C_heat;
 
         // Assign fields
         p[cellI]    = p_friedlander;
-		rho1[cellI] = rho_adbt;
-		T[cellI] = T_adbt;
 
-
-        scalar ux = -x_shift / safe_rmag;
-        scalar uy = -y_shift / safe_rmag;
-		U[cellI] = vector(U_mag*ux, U_mag*uy, 0.0);
+        scalar ux = x_shift / safe_rmag;
+        scalar uy = y_shift / safe_rmag;
 	}
     else
     {
         p[cellI]    = pAmbient;
-		rho1[cellI] = rho_amb;
-		T[cellI]    = 298.0;
-		U[cellI]    = vector::zero;
     }
     
+    rho1[cellI] = rho_amb;
+    U[cellI]    = vector::zero;
+    T[cellI]    = 298.0;
     rho2[cellI] = 1.293; // air density
 }
 
-// high order initialization for smoothing of volume mixing fraction alpha
-      
-         label np=40;
-                    
-         forAll(U,cellI)
-        {
-            scalar sumY0=0.0;
-            scalar sumY1=0.0;
-            scalar sumY2=0.0;
-            //vector sumV=vector::zero;
-            scalar sumNum=0.0;
-            if(mixMeshType[cellI]==0)
-            {
-                label pt[4];
-                pt[0]=mixVertLabels[cellI][0];
-                pt[1]=mixVertLabels[cellI][1];
-                pt[2]=mixVertLabels[cellI][2];
-                pt[3]=mixVertLabels[cellI][3];
-
-                scalar xM[4],yM[4];
-                for(label m=0;m<4;m++)
-                {
-                    xM[m]=mesh.points()[pt[m]].x(); 
-                    yM[m]=mesh.points()[pt[m]].y();
-                }
-
-                scalar N[4];
-                for(int i=0; i<=np; i++)
-                {
-                    for(int j=0; j<=np; j++)
-                    {
-                        scalar wgI = -1.0+double(i)*2.0/double(np);
-                        scalar wgJ = -1.0+double(j)*2.0/double(np);
-                        N[0]=(1.0-wgI)*(1.0-wgJ)/4.0;
-                        N[1]=(1.0+wgI)*(1.0-wgJ)/4.0;
-                        N[2]=(1.0+wgI)*(1.0+wgJ)/4.0;
-                        N[3]=(1.0-wgI)*(1.0+wgJ)/4.0;    
-                        scalar xx = N[0]*xM[0]+N[1]*xM[1]+N[2]*xM[2]+N[3]*xM[3];
-                        scalar yy = N[0]*yM[0]+N[1]*yM[1]+N[2]*yM[2]+N[3]*yM[3];
-						
-						// Interface perturbation and cavity zero
-						scalar azim  = Foam::atan2(yy, xx);
-						scalar pertR = r0 - a0*Foam::cos(n*azim);
-						scalar r2    = xx*xx + yy*yy;
-						
-                        if((r2 <= pertR*pertR) || ((r2 <= r_cav*r_cav) and (yy<=lines[0][0]*xx+lines[0][1]) and (yy>=lines[1][0]*xx+lines[1][1])))		//change to match interface
-                        {
-                            sumY0+=1.0e-6;
-                            sumY1+=1.0e-6;
-                            sumY2+=0.999998;
-                        }
-                        else
-                        {
-                            sumY0+=0.999998;
-                            sumY1+=1.0e-6;
-                            sumY2+=1.0e-6;
-                        }
-                        sumNum+=1.0;
-                    }
-                }
-            }
-            else
-            {
-                label pt[3];
-                pt[0]=mixVertLabels[cellI][0];
-                pt[1]=mixVertLabels[cellI][1];
-                pt[2]=mixVertLabels[cellI][2];
-
-                scalar xM[3],yM[3];
-                for(label m=0;m<3;m++)
-                {
-                   xM[m]=mesh.points()[pt[m]].x(); 
-                   yM[m]=mesh.points()[pt[m]].y();
-                } 
-
-                scalar N[3];
-
-           }
-
-            alpha1[cellI] = sumY0/sumNum;			//alpha- volume mixing fraction
-            p[cellI]=pAmbient;
-            T[cellI]=298.0;  
-           // rho[cellI] = sumR/sumNum;
-        }
-
 //create vector to store x, y coords of cavity zero
-	List<vector> targetCoords;
-	std::vector<float> targetAlpha;
+	List<vector> targetCoords;	
 
  //find cavity zero cell coords
           forAll(p,cellI){
@@ -345,35 +260,34 @@ forAll(p, cellI)
 					
 					((xc*xc + yc*yc) > (r0 + a0)*(r0 + a0))
 					
-					//find air/mixing cell
-					and (alpha1[cellI] < 0.9999)
+					//find air cell
+					and (alpha1[cellI]==0)
 					
 					)
 					
 						{
 							//Info << "Found target cell " << endl;
-							Info << "Identified cell, alpha = " << alpha1[cellI] << endl;
-													
-							//calculate corresponding rotation cell coords
+							
+							//calculate corresponding rotation cell coords 
 							for (int n=1; n<int(ncav); n++) 
 								
 							{
 										scalar xrot = xc*Foam::cos(rot*n)-yc*Foam::sin(rot*n);
 										scalar yrot = xc*Foam::sin(rot*n)+yc*Foam::cos(rot*n);
-										targetCoords.append(vector(xrot, yrot, 0.0005));			//store coords
-										targetAlpha.push_back(alpha1[cellI]);					//store corresponding alpha1
+										targetCoords.append(vector(xrot, yrot, 0.0));
+	
 							}
 						
 						}
 
                      }
 
-//now target all cells nearest to identified coords
+//now target all cells nearest to identified coords and set alpha1 to 0
 	forAll(targetCoords, i)
 	{
 		vector target = targetCoords[i];
 		label nearest = -1;
-		scalar minDist = 1e-8;
+		scalar minDist = 1e-6;
 
 		forAll(mesh.C(), cellI)
 		{
@@ -384,14 +298,12 @@ forAll(p, cellI)
 				nearest = cellI;
 			}
 		}
-		
-		//set alpha1 to corresponding value
-		
+
 		if (nearest != -1)
 		{
 			//Info << "Updating alpha at nearest cell " << nearest
-				//<< " (coords " << mesh.C()[nearest] << ")" << endl;			
-			alpha1[nearest] = targetAlpha[i];
+				//<< " (coords " << mesh.C()[nearest] << ")" << endl;
+			alpha1[nearest] = 0.0;
 		}
 	}
 
