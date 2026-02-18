@@ -326,8 +326,8 @@ forAll(p, cellI)
            }
 
             alpha1[cellI] = sumY0/sumNum;			//alpha- volume mixing fraction
-            p[cellI]=pAmbient;
-            T[cellI]=298.0;  
+           // p[cellI]=pAmbient;
+           // T[cellI]=298.0;  
            // rho[cellI] = sumR/sumNum;
         }
 
@@ -352,7 +352,7 @@ forAll(p, cellI)
 					
 						{
 							//Info << "Found target cell " << endl;
-							Info << "Identified cell, alpha = " << alpha1[cellI] << endl;
+							//Info << "Identified cell, alpha = " << alpha1[cellI] << endl;
 													
 							//calculate corresponding rotation cell coords
 							for (int n=1; n<int(ncav); n++) 

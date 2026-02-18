@@ -300,8 +300,8 @@ forAll(p, cellI)
            }
 
             alpha1[cellI] = sumY0/sumNum;			//alpha- volume mixing fraction
-            p[cellI]=pAmbient;
-            T[cellI]=298.0;		
+           // p[cellI]=pAmbient;
+           // T[cellI]=298.0;		
            // rho[cellI] = sumR/sumNum;
         }
         
